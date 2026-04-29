@@ -1,6 +1,12 @@
 # re-actors/alls-green
 
-Hardened GitHub Action by [Chainguard](https://www.chainguard.dev).
+Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at [https://github.com/re-actors/alls-green](https://github.com/re-actors/alls-green).
+
+## Versions
+
+| Version | Tag | Upstream commit |
+|---------|-----|-----------------|
+| v1.2.2 | [`v1.2.2`](https://github.com/chainguard-actions/alls-green/tree/v1.2.2) | — |
 
 ## Privacy
 
