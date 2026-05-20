@@ -1,7 +1,0 @@
-{
-  "owner": "re-actors",
-  "name": "alls-green",
-  "visibility": "internal",
-  "description": "A check for whether the dependency jobs are all green.",
-  "block_publish": false
-}
