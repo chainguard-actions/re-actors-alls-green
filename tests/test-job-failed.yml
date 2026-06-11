@@ -1,0 +1,40 @@
+---
+name: Test job failed scenario
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          jobs: >-
+            {
+              "build": {"result": "success", "outputs": {}},
+              "test": {"result": "failure", "outputs": {}}
+            }
+        continue-on-error: true
+      - name: Assert failure output is true
+        env:
+          ACTUAL_SUCCESS: ${{ steps.action.outputs.success }}
+          ACTUAL_FAILURE: ${{ steps.action.outputs.failure }}
+          ACTUAL_RESULT: ${{ steps.action.outputs.result }}
+        run: |
+          echo "success: $ACTUAL_SUCCESS"
+          echo "failure: $ACTUAL_FAILURE"
+          echo "result: $ACTUAL_RESULT"
+          if [ "$ACTUAL_FAILURE" != "true" ]; then
+            echo "FAIL: expected failure=true, got '$ACTUAL_FAILURE'"
+            exit 1
+          fi
+          if [ "$ACTUAL_SUCCESS" != "false" ]; then
+            echo "FAIL: expected success=false, got '$ACTUAL_SUCCESS'"
+            exit 1
+          fi
+          if [ "$ACTUAL_RESULT" != "failure" ]; then
+            echo "FAIL: expected result=failure, got '$ACTUAL_RESULT'"
+            exit 1
+          fi
+          echo "PASS"
