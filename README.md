@@ -1,6 +1,6 @@
 # re-actors/alls-green
 
-A check for whether the dependency jobs are all green.
+GitHub Action for checking that the test matrix jobs are all successful before proceeding. To be used in branch protection
 
 Hardened by [Chainguard](https://www.chainguard.dev) from the upstream action at [https://github.com/re-actors/alls-green](https://github.com/re-actors/alls-green).
 
