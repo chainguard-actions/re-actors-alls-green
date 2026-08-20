@@ -57,12 +57,12 @@ runs:
       id: outcome
       env:
         PYTHONPATH: ${{ github.action_path }}/src
-        ALLOWED_FAILURES: ${{ inputs.allowed-failures }}
-        ALLOWED_SKIPS: ${{ inputs.allowed-skips }}
-        JOBS: ${{ inputs.jobs }}
+        INPUT_ALLOWED_FAILURES: ${{ inputs.allowed-failures }}
+        INPUT_ALLOWED_SKIPS: ${{ inputs.allowed-skips }}
+        INPUT_JOBS: ${{ inputs.jobs }}
       run: |
         python -m normalize_needed_jobs_status \
-        "$ALLOWED_FAILURES" \
-        "$ALLOWED_SKIPS" \
-        "$JOBS"
+        "$INPUT_ALLOWED_FAILURES" \
+        "$INPUT_ALLOWED_SKIPS" \
+        "$INPUT_JOBS"
       shell: bash

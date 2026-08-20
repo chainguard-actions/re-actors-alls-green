@@ -13,27 +13,36 @@ jobs:
           jobs: >-
             {
               "build": {"result": "success", "outputs": {}},
-              "lint": {"result": "success", "outputs": {}}
+              "lint": {"result": "success", "outputs": {}},
+              "test": {"result": "success", "outputs": {}}
             }
       - name: Assert success output is true
         env:
-          ACTUAL_SUCCESS: ${{ steps.action.outputs.success }}
-          ACTUAL_FAILURE: ${{ steps.action.outputs.failure }}
-          ACTUAL_RESULT: ${{ steps.action.outputs.result }}
+          SUCCESS: ${{ steps.action.outputs.success }}
         run: |
-          echo "success: $ACTUAL_SUCCESS"
-          echo "failure: $ACTUAL_FAILURE"
-          echo "result: $ACTUAL_RESULT"
-          if [ "$ACTUAL_SUCCESS" != "true" ]; then
-            echo "FAIL: expected success=true, got '$ACTUAL_SUCCESS'"
+          echo "success: $SUCCESS"
+          if [ "$SUCCESS" != "true" ]; then
+            echo "FAIL: expected success=true, got '$SUCCESS'"
             exit 1
           fi
-          if [ "$ACTUAL_FAILURE" != "false" ]; then
-            echo "FAIL: expected failure=false, got '$ACTUAL_FAILURE'"
+          echo "PASS"
+      - name: Assert failure output is false
+        env:
+          FAILURE: ${{ steps.action.outputs.failure }}
+        run: |
+          echo "failure: $FAILURE"
+          if [ "$FAILURE" != "false" ]; then
+            echo "FAIL: expected failure=false, got '$FAILURE'"
             exit 1
           fi
-          if [ "$ACTUAL_RESULT" != "success" ]; then
-            echo "FAIL: expected result=success, got '$ACTUAL_RESULT'"
+          echo "PASS"
+      - name: Assert result output is success
+        env:
+          RESULT: ${{ steps.action.outputs.result }}
+        run: |
+          echo "result: $RESULT"
+          if [ "$RESULT" != "success" ]; then
+            echo "FAIL: expected result=success, got '$RESULT'"
             exit 1
           fi
           echo "PASS"

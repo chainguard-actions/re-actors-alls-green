@@ -8,21 +8,53 @@
 
 **Test Policy SHA:** `843adf9e4b8f85d0c08b27b9d0b09dd094b54702`
 
-**Harden Agent Version:** `1`
+**Harden Agent Version:** `2`
 
-Action **re-actors--alls-green/v1.2.2** was hardened automatically. 4 finding(s) were identified and resolved across 1 iteration(s).
+Action **re-actors--alls-green/v1.2.2** was hardened automatically. 7 finding(s) were identified and resolved across 2 iteration(s).
 
 ## Findings Fixed
 
 ### script-injection (severity: high)
 
-Sub-rule (a) violation: The run: block in action.yml directly interpolates GitHub Actions expressions ${{ inputs.allowed-failures }}, ${{ inputs.allowed-skips }}, and ${{ inputs.jobs }} inside the shell script. Although these values are placed inside heredocs (cat << EOM ... EOM), the GitHub Actions template engine expands all ${{ ... }} expressions before the shell ever parses the script. An attacker-controlled input containing shell metacharacters or a premature heredoc terminator (e.g., a value like 'EOM\n) && malicious_command #') can break out of the heredoc context and inject arbitrary shell commands. All three inputs must be passed via env: variables and referenced as quoted shell variables (e.g., "$ALLOWED_FAILURES") instead of being interpolated directly.
+The composite action's run: block directly interpolates user-controlled inputs into shell command strings via ${{ }} expressions (sub-rule a). Specifically, ${{ inputs.allowed-failures }}, ${{ inputs.allowed-skips }}, and ${{ inputs.jobs }} are embedded inside shell heredocs passed as positional arguments to Python. An attacker-controlled caller can inject arbitrary shell metacharacters through these inputs. The offending lines are inside the heredoc arguments: `${{ inputs.allowed-failures }}`, `${{ inputs.allowed-skips }}`, and `${{ inputs.jobs }}`.
 
 Locations:
 
-- `action.yml:52`
-- `action.yml:57`
-- `action.yml:62`
+- `action.yml:51`
+- `action.yml:55`
+- `action.yml:59`
+
+### script-injection (severity: high)
+
+The workflow's run: block directly interpolates ${{ matrix.rc }} into a shell command string (sub-rule a): `run: exit ${{ matrix.rc }}`. Any expression interpolated via ${{ }} inside a run: block is a script-injection risk because the value is substituted into the shell command before the shell parses it.
+
+Locations:
+
+- `.github/workflows/self-smoke-test-action.yml:35`
+
+### unpinned-uses (severity: high)
+
+The workflow uses `actions/checkout@v3` (a mutable tag reference, not a pinned 40-character SHA commit hash) in 9 separate steps across multiple jobs. This exposes the workflow to supply-chain attacks if the tag is moved or the upstream repository is compromised. All occurrences should be pinned to a full SHA, e.g. `actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v3`.
+
+Locations:
+
+- `.github/workflows/self-smoke-test-action.yml:40`
+- `.github/workflows/self-smoke-test-action.yml:55`
+- `.github/workflows/self-smoke-test-action.yml:70`
+- `.github/workflows/self-smoke-test-action.yml:86`
+- `.github/workflows/self-smoke-test-action.yml:103`
+- `.github/workflows/self-smoke-test-action.yml:120`
+- `.github/workflows/self-smoke-test-action.yml:137`
+- `.github/workflows/self-smoke-test-action.yml:154`
+- `.github/workflows/self-smoke-test-action.yml:172`
+
+### missing-permissions (severity: medium)
+
+The workflow file has no top-level `permissions:` key and no job-level `permissions:` key on any of its jobs. Without explicit permissions, the workflow inherits the repository's default token permissions, which may be overly broad (e.g. write access to contents). A minimal permissions block such as `permissions: {}` or specific scopes should be added.
+
+Locations:
+
+- `.github/workflows/self-smoke-test-action.yml:1`
 
 ### static-inline-injection (severity: high)
 
@@ -52,9 +84,17 @@ Locations:
 
 ### Iteration 1
 
-**Fixes applied:** script-injection, static-inline-injection
+**Fixes applied:** script-injection, static-inline-injection, unpinned-uses, missing-permissions
 
 **Notes:**
 
-Moved all three ${{ inputs.* }} expressions (${{ inputs.allowed-failures }}, ${{ inputs.allowed-skips }}, ${{ inputs.jobs }}) from the run: block into the env: block as ALLOWED_FAILURES, ALLOWED_SKIPS, and JOBS environment variables. The shell script now references these as quoted shell variables ("$ALLOWED_FAILURES", "$ALLOWED_SKIPS", "$JOBS") instead of directly interpolating GitHub Actions expressions inside heredocs. The heredoc construct was removed as it is no longer needed. This eliminates the risk of shell injection via attacker-controlled input values containing shell metacharacters or heredoc terminators.
+Fixed all findings: (1) action.yml: moved ${{ inputs.allowed-failures }}, ${{ inputs.allowed-skips }}, and ${{ inputs.jobs }} from the run: heredoc into the env: block as INPUT_ALLOWED_FAILURES, INPUT_ALLOWED_SKIPS, INPUT_JOBS, referenced as plain env vars in the shell script; (2) workflow: fixed 'exit ${{ matrix.rc }}' by moving matrix.rc into env: as MATRIX_RC; (3) pinned all 9 actions/checkout@v3 references to SHA a37ce9120846195fa4ece8f58b268e6043cb2f26 # v3; (4) added 'permissions: {}' at the top level of the workflow.
+
+### Iteration 2
+
+**Fixes applied:** script-injection
+
+**Notes:**
+
+Fixed 16 script injection instances across 8 jobs in .github/workflows/self-smoke-test-action.yml. In each job, the two `run:` steps that directly interpolated `${{ toJSON(needs.*.result) }}` and `${{ toJSON(steps.check.outputs) }}` into shell strings were updated to use `env:` blocks. The expressions are now assigned to environment variables RESULTS and OUTPUTS respectively, and referenced as `$RESULTS` and `$OUTPUTS` in the shell commands. The single-quoted `echo 'results=...'` form was also changed to double-quoted `echo "results=$RESULTS"` to properly expand the variable. All other parts of the workflow (pinned action SHAs, permissions block, etc.) were preserved unchanged.
 

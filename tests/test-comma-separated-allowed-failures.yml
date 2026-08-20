@@ -1,5 +1,5 @@
 ---
-name: Test allowed-skips - skipped job in allowed list does not fail check
+name: Test comma-separated allowed-failures input format
 on:
   workflow_dispatch:
 jobs:
@@ -13,27 +13,17 @@ jobs:
           jobs: >-
             {
               "build": {"result": "success", "outputs": {}},
-              "optional-job": {"result": "skipped", "outputs": {}}
+              "flaky-a": {"result": "failure", "outputs": {}},
+              "flaky-b": {"result": "failure", "outputs": {}}
             }
-          allowed-skips: >-
-            ["optional-job"]
+          allowed-failures: "flaky-a, flaky-b"
       - name: Assert success output is true
         env:
           SUCCESS: ${{ steps.action.outputs.success }}
         run: |
           echo "success: $SUCCESS"
           if [ "$SUCCESS" != "true" ]; then
-            echo "FAIL: expected success=true when skipped job is in allowed-skips, got '$SUCCESS'"
-            exit 1
-          fi
-          echo "PASS"
-      - name: Assert failure output is false
-        env:
-          FAILURE: ${{ steps.action.outputs.failure }}
-        run: |
-          echo "failure: $FAILURE"
-          if [ "$FAILURE" != "false" ]; then
-            echo "FAIL: expected failure=false when skipped job is in allowed-skips, got '$FAILURE'"
+            echo "FAIL: expected success=true with comma-separated allowed-failures, got '$SUCCESS'"
             exit 1
           fi
           echo "PASS"
@@ -43,7 +33,7 @@ jobs:
         run: |
           echo "result: $RESULT"
           if [ "$RESULT" != "success" ]; then
-            echo "FAIL: expected result=success when skipped job is in allowed-skips, got '$RESULT'"
+            echo "FAIL: expected result=success with comma-separated allowed-failures, got '$RESULT'"
             exit 1
           fi
           echo "PASS"

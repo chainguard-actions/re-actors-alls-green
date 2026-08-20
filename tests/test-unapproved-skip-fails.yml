@@ -1,5 +1,5 @@
 ---
-name: Test a required job failed
+name: Test unapproved skipped job causes failure
 on:
   workflow_dispatch:
 jobs:
@@ -14,15 +14,15 @@ jobs:
           jobs: >-
             {
               "build": {"result": "success", "outputs": {}},
-              "test": {"result": "failure", "outputs": {}}
+              "required-job": {"result": "skipped", "outputs": {}}
             }
-      - name: Assert action step failed (required job failed)
+      - name: Assert action step failed (required job was skipped without being in allowed-skips)
         env:
           OUTCOME: ${{ steps.action.outcome }}
         run: |
           echo "outcome: $OUTCOME"
           if [ "$OUTCOME" != "failure" ]; then
-            echo "FAIL: expected action step to fail when a required job fails, got '$OUTCOME'"
+            echo "FAIL: expected action step to fail when a required job is skipped, got '$OUTCOME'"
             exit 1
           fi
           echo "PASS: action correctly failed"
@@ -32,17 +32,7 @@ jobs:
         run: |
           echo "success: $SUCCESS"
           if [ "$SUCCESS" != "false" ]; then
-            echo "FAIL: expected success=false, got '$SUCCESS'"
-            exit 1
-          fi
-          echo "PASS"
-      - name: Assert failure output is true
-        env:
-          FAILURE: ${{ steps.action.outputs.failure }}
-        run: |
-          echo "failure: $FAILURE"
-          if [ "$FAILURE" != "true" ]; then
-            echo "FAIL: expected failure=true, got '$FAILURE'"
+            echo "FAIL: expected success=false when required job is skipped, got '$SUCCESS'"
             exit 1
           fi
           echo "PASS"
@@ -52,7 +42,7 @@ jobs:
         run: |
           echo "result: $RESULT"
           if [ "$RESULT" != "failure" ]; then
-            echo "FAIL: expected result=failure, got '$RESULT'"
+            echo "FAIL: expected result=failure when required job is skipped, got '$RESULT'"
             exit 1
           fi
           echo "PASS"
