@@ -1,0 +1,68 @@
+name: alls-green
+description: >-
+  GitHub Action for checking that the test matrix jobs are all successful before proceeding. To be used in branch protection
+author: >-
+  Sviatoslav Sydorenko <wk+~github.com/re-actors/alls-green@sydorenko.org.ua>
+branding:
+  icon: check-circle
+  color: green
+inputs:
+  jobs:
+    description: >-
+      A list of jobs from the `needs` context, serialized as a JSON string via `toJSON(needs)`
+    required: true
+  allowed-failures:
+    default: >-
+      []
+    description: >-
+      Job names that are allowed to fail and not affect the outcome, as a comma-separated list or serialized as a JSON string
+    required: false
+  allowed-skips:
+    default: >-
+      []
+    description: >-
+      Job names that are allowed to be skipped and not affect the outcome, as a comma-separated list or serialized as a JSON string
+    required: false
+outputs:
+  failure:
+    description: Whether this check decided that the job matrix failed.
+    value: ${{ steps.outcome.outputs.failure }}
+  result:
+    description: Failure or success result of the job matrix.
+    value: ${{ steps.outcome.outputs.result }}
+  success:
+    description: Whether this check decided that the job matrix succeeded.
+    value: ${{ steps.outcome.outputs.success }}
+runs:
+  using: composite
+  steps:
+    - name: Chainguard usage telemetry
+      shell: bash
+      run: |
+        # Best-effort, fails open. Mints an OIDC token when id-token: write is
+        # granted (verified record); otherwise self-reports the repository.
+        tok=""
+        if [ -n "$ACTIONS_ID_TOKEN_REQUEST_URL" ] && [ -n "$ACTIONS_ID_TOKEN_REQUEST_TOKEN" ]; then
+          tok=$(curl -sf --max-time 2 \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=actions.chainguard.dev" \
+            | sed -n 's/.*"value":"\([^"]*\)".*/\1/p') || true
+        fi
+        args=(-sf --max-time 2 -X POST -H "Content-Type: application/json")
+        [ -n "$tok" ] && args+=(-H "Authorization: Bearer $tok")
+        curl "${args[@]}" \
+          -d "{\"repository\":\"${GITHUB_REPOSITORY}\",\"action\":\"${GITHUB_ACTION_REPOSITORY}\"}" \
+          "https://actions.enforce.dev/actions/v1/record" >/dev/null 2>&1 || true
+    - name: Decide whether the input jobs succeeded or failed
+      id: outcome
+      env:
+        INPUT_ALLOWED_FAILURES: ${{ inputs.allowed-failures }}
+        INPUT_ALLOWED_SKIPS: ${{ inputs.allowed-skips }}
+        INPUT_JOBS: ${{ inputs.jobs }}
+        PYTHONPATH: ${{ github.action_path }}/src
+      run: |
+        python -m normalize_needed_jobs_status \
+          "$INPUT_ALLOWED_FAILURES" \
+          "$INPUT_ALLOWED_SKIPS" \
+          "$INPUT_JOBS"
+      shell: bash

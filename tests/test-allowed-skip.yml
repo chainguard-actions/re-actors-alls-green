@@ -1,0 +1,48 @@
+---
+name: Test allowed-skips job skipped but overall succeeds
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - id: action
+        uses: .
+        with:
+          jobs: >-
+            {
+              "build": {"result": "success", "outputs": {}},
+              "optional-job": {"result": "skipped", "outputs": {}}
+            }
+          allowed-skips: '["optional-job"]'
+      - name: Assert success output is true
+        env:
+          SUCCESS: ${{ steps.action.outputs.success }}
+        run: |
+          echo "success: $SUCCESS"
+          if [ "$SUCCESS" != "true" ]; then
+            echo "FAIL: expected success=true when allowed-skip job was skipped, got '$SUCCESS'"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert failure output is false
+        env:
+          FAILURE: ${{ steps.action.outputs.failure }}
+        run: |
+          echo "failure: $FAILURE"
+          if [ "$FAILURE" != "false" ]; then
+            echo "FAIL: expected failure=false, got '$FAILURE'"
+            exit 1
+          fi
+          echo "PASS"
+      - name: Assert result output is success
+        env:
+          RESULT: ${{ steps.action.outputs.result }}
+        run: |
+          echo "result: $RESULT"
+          if [ "$RESULT" != "success" ]; then
+            echo "FAIL: expected result=success, got '$RESULT'"
+            exit 1
+          fi
+          echo "PASS"
