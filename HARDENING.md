@@ -4,49 +4,114 @@
 
 > This file was generated automatically by the hardening agent.
 
-**Policy SHA:** `d636be7e43ef829af6e853da6b3c7566db9f72fe`
+**Policy SHA:** `374911c4be584df24e6da57af2d990570ef0f859`
 
 **Test Policy SHA:** `843adf9e4b8f85d0c08b27b9d0b09dd094b54702`
 
 **Harden Agent Version:** `2`
 
-Action **re-actors--alls-green/v1.3.0** was hardened automatically. 3 finding(s) were identified and resolved across 1 iteration(s).
+Action **re-actors--alls-green/v1.3.0** was hardened automatically. 1 finding(s) were identified and resolved across 1 iteration(s).
 
 ## Findings Fixed
 
-### script-injection (severity: high)
+### prior-fix (severity: high)
 
-Multiple `run:` blocks in the workflow directly interpolate `${{ }}` expressions, violating rule (a). (1) `run: exit ${{ matrix.rc }}` — `matrix.rc` is interpolated directly into a shell command. (2) `run: echo 'results=${{ toJSON(needs.*.result) }}'` — `needs.*.result` is interpolated directly into a shell command (repeated across 8 jobs). (3) `run: echo 'outputs=${{ toJSON(steps.check.outputs) }}'` — `steps.check.outputs` is interpolated directly into a shell command (repeated across 8 jobs). Any `${{ ... }}` expression inside a `run:` block is a script-injection risk because the value is substituted by the template engine before the shell ever sees it, allowing metacharacters to escape quoting.
+Carried forward from this version's previous harden, which fixed it; fix it again unless the code no longer has the problem. The previous harden changed action.yml without recording a finding for it, and this analysis reported nothing there. Re-apply its security changes unless the code no longer needs them. The previous patch:
+```diff
+diff --git a/action.yml b/action.yml
+index 9c25073..0c1de71 100644
+--- a/action.yml
++++ b/action.yml
+@@ -1,36 +1,28 @@
+----
+ name: alls-green
+ description: >-
+-  GitHub Action for checking that the test matrix jobs are all
+-  successful before proceeding. To be used in branch protection
++  GitHub Action for checking that the test matrix jobs are all successful before proceeding. To be used in branch protection
+ author: >-
+   Sviatoslav Sydorenko <wk+~github.com/re-actors/alls-green@sydorenko.org.ua>
+-
+ branding:
+   icon: check-circle
+   color: green
+-
+ inputs:
+   jobs:
+     description: >-
+-      A list of jobs from the `needs` context, serialized as a JSON
+-      string via `toJSON(needs)`
++      A list of jobs from the `needs` context, serialized as a JSON string via `toJSON(needs)`
+     required: true
+   allowed-failures:
+     default: >-
+       []
+     description: >-
+-      Job names that are allowed to fail and not affect the outcome,
+-      as a comma-separated list or serialized as a JSON string
++      Job names that are allowed to fail and not affect the outcome, as a comma-separated list or serialized as a JSON string
+     required: false
+   allowed-skips:
+     default: >-
+       []
+     description: >-
+-      Job names that are allowed to be skipped and not affect the
+-      outcome, as a comma-separated list or serialized as a JSON string
++      Job names that are allowed to be skipped and not affect the outcome, as a comma-separated list or serialized as a JSON string
+     required: false
+-
+ outputs:
+   failure:
+     description: Whether this check decided that the job matrix failed.
+@@ -41,21 +33,36 @@ outputs:
+   success:
+     description: Whether this check decided that the job matrix succeeded.
+     value: ${{ steps.outcome.outputs.success }}
+-
+ runs:
+   using: composite
+   steps:
+-  - name: Decide whether the input jobs succeeded or failed
+-    id: outcome
+-    env:
+-      INPUT_ALLOWED_FAILURES: ${{ inputs.allowed-failures }}
+-      INPUT_ALLOWED_SKIPS: ${{ inputs.allowed-skips }}
+-      INPUT_JOBS: ${{ inputs.jobs }}
+-      PYTHONPATH: ${{ github.action_path }}/src
+-    run: |
+-      python -m normalize_needed_jobs_status \
+-        "$INPUT_ALLOWED_FAILURES" \
+-        "$INPUT_ALLOWED_SKIPS" \
+-        "$INPUT_JOBS"
+-    shell: bash
+-...
++    - name: Decide whether the input jobs succeeded or failed
++      id: outcome
++      env:
++        INPUT_ALLOWED_FAILURES: ${{ inputs.allowed-failures }}
++        INPUT_ALLOWED_SKIPS: ${{ inputs.allowed-skips }}
++        INPUT_JOBS: ${{ inputs.jobs }}
++        PYTHONPATH: ${{ github.action_path }}/src
++      run: |
++        python -m normalize_needed_jobs_status \
++          "$INPUT_ALLOWED_FAILURES" \
++          "$INPUT_ALLOWED_SKIPS" \
++          "$INPUT_JOBS"
++      shell: bash
+
+```
 
 Locations:
 
-- `.github/workflows/self-smoke-test-action.yml:42`
-- `.github/workflows/self-smoke-test-action.yml:54`
-- `.github/workflows/self-smoke-test-action.yml:63`
-
-### unpinned-uses (severity: high)
-
-The workflow uses `actions/checkout@v3` (a mutable tag, not a full 40-character SHA commit hash) in 9 separate jobs: wait-for-success, wait-for-failure, wait-for-both, allow-some-failures, allow-some-failures-str, allow-failures-n-skips, allow-skips, allow-partials, and check. A tag reference can be moved by the upstream repository owner at any time, enabling a supply-chain attack. Each reference should be pinned to a full SHA, e.g. `actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v3`.
-
-Locations:
-
-- `.github/workflows/self-smoke-test-action.yml:53`
-
-### missing-permissions (severity: medium)
-
-The workflow file `.github/workflows/self-smoke-test-action.yml` has no top-level `permissions:` key and none of the individual jobs define their own `permissions:` block. Without explicit permissions, the workflow inherits the repository's default token permissions, which may be overly broad (e.g. `write` access to contents, pull-requests, etc.). A minimal `permissions:` block (e.g. `permissions: {}` or specific scopes like `contents: read`) should be added at the top level or to each job.
-
-Locations:
-
-- `.github/workflows/self-smoke-test-action.yml:1`
+- `action.yml`
 
 ## Iteration Notes
 
 ### Iteration 1
 
-**Fixes applied:** script-injection, unpinned-uses, missing-permissions
+**Fixes applied:** prior-fix
 
 **Notes:**
 
-Fixed all three findings in .github/workflows/self-smoke-test-action.yml: (1) Added `permissions: {}` at the top level to address missing-permissions. (2) Pinned all 9 `actions/checkout@v3` references to the full SHA `a37ce9120846195fa4ece8f58b268e6043cb2f26` with `# v3` comment. (3) Moved all `${{ }}` expressions out of `run:` blocks into `env:` blocks: `matrix.rc` → `MATRIX_RC` env var with `exit "$MATRIX_RC"`, `toJSON(needs.*.result)` → `RESULTS` env var with `echo "results=$RESULTS"` (8 jobs), and `toJSON(steps.check.outputs)` → `OUTPUTS` env var with `echo "outputs=$OUTPUTS"` (8 jobs).
+I made no changes, because the earlier patch only changed formatting. It re-indented the steps, removed the '---' and '...' markers and rejoined the folded description lines. Nothing in it affected security. The current action.yml already does the safe thing: all three inputs go into the step's env: block and are used as quoted "$VAR" arguments in the script. The only ${{ }} expressions left in the file are the env: values and the output declarations, and neither is injectable. The Python script writes only fixed values to GITHUB_OUTPUT. There are no uses: references and no container images to pin, so the action file is unchanged.
 
